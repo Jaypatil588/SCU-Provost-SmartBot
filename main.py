@@ -182,7 +182,7 @@ def initialize_app():
     print("\n--- QA Chatbot is initialized and ready (Deliberate Two-Step Mode). ---")
     return True
 
-@app.route('/qa', methods=['POST'])
+@app.route('/', methods=['POST'])
 def handle_qa():
     """The main endpoint using the deliberate two-step pipeline."""
     if not is_initialized:
