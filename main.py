@@ -206,6 +206,8 @@ def handle_qa():
     conversation_history.append({'role': 'User', 'content': query})
     conversation_history.append({'role': 'Assistant', 'content': final_answer})
 
+    if "not listed" in str(final_answer).lower():
+        return jsonify({"answer": "I couldn't find that information, but here is the reference webpage: {url_to_search}", "source": f"Live Search on {url_to_search}"})
     return jsonify({"answer": final_answer, "source": f"Live Search on {url_to_search}"})
 
 if __name__ == '__main__':
