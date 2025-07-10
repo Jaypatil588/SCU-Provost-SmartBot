@@ -1,58 +1,38 @@
 # main.py
-# A QA Chatbot that uses a deliberate, two-step API call process to avoid rate limits.
-# Step 1: Identify the most relevant file.
-# Step 2: Browse that file's URL for the answer.
-
 import os
 import json
 import glob
-import time
 from flask import Flask, request, jsonify
-import google.generativeai as genai
-from google.api_core import client_options
-
-# --- 1. CONFIGURATION ---
 from google import genai
 from google.genai import types
-import os
 from dotenv import load_dotenv
-
-# Load variables from .env file into the environment
-load_dotenv()
-
-# Now you can access the variable using os.environ.get()
-my_api_key = os.environ.get("GEMINI_API_KEY")
-
-#add conversation history:
 from collections import deque
-conversation_history = deque(maxlen=6)
 
+#INITs
+load_dotenv()
+DATA_DIR = "scraped"
+my_api_key = os.environ.get("GEMINI_API_KEY")
+conversation_history = deque(maxlen=10)
+
+#DEF FUNCTIONS
 
 def searchFx(prompt):
-
-    # Configure the client
     client = genai.Client(
             api_key = my_api_key
     )
-
-    # Define the grounding tool
+    #this enables live web search, bypassing need for inaccurate embeddings
     grounding_tool = types.Tool(
         google_search=types.GoogleSearch()
     )
-
-    # Configure generation settings
     config = types.GenerateContentConfig(
         tools=[grounding_tool]
     )
-
-    # Make the request
     response = client.models.generate_content(
         model="gemini-2.5-flash",
         contents=prompt,
         config=config,
     )
 
-    # Print the grounded response
     print(response.text)
     return response.text
 
@@ -93,13 +73,7 @@ Your persona is a busy but helpful administrative assistant. Your responses must
 """
     return searchFx(prompt)
 
-DATA_DIR = "scraped"
-
 def load_file_metadata(directory):
-    """
-    Loads all JSON files and creates a simple mapping of filename to sourceURL.
-    This is a very lightweight operation that runs once at startup.
-    """
     print(f"Loading file metadata from '{directory}' directory...")
     file_url_map = {}
     json_files = glob.glob(os.path.join(directory, '*.json'))
@@ -118,14 +92,10 @@ def load_file_metadata(directory):
     print(f"Successfully loaded metadata from {len(file_url_map)} files.")
     return file_url_map
 
-# --- 3. CORE LOGIC (DELIBERATE TWO-STEP PROCESS) ---
-
 def identify_relevant_file(query, all_filenames,conv):
     conv = "\n".join([f"{item['role']}: {item['content']}" for item in conv])
+    print("Identifying the most relevant file")
 
-    print("Step 1: Identifying the most relevant file via API call...")
-    
-    # Create a string of all filenames for the prompt
     filenames_str = "\n".join(all_filenames)
 
     prompt = f"""
@@ -152,8 +122,6 @@ You are a file routing assistant. Your task is to identify the single most relev
 """
     try:
         response = searchFx(prompt)
-        # Clean up the response to ensure it's just the filename
-        # A final check to ensure the model returned a valid filename
         if response in all_filenames:
             return response
         else:
@@ -163,28 +131,23 @@ You are a file routing assistant. Your task is to identify the single most relev
         print(f"An error occurred during file identification: {e}")
         return None
 
-# --- 4. FLASK API SERVER ---
-
+#FLASK
 app = Flask(__name__)
 is_initialized = False
-# This will hold the mapping of filenames to URLs, loaded once at startup.
 file_to_url_map = {}
 
 def initialize_app():
-    """One-time initialization for all chatbot data."""
     global is_initialized, file_to_url_map
-    # if not setup_api_key(): return False
-    # Load all file metadata into a single dictionary at startup.
     loaded_map = load_file_metadata(DATA_DIR)
     if not loaded_map: return False
     file_to_url_map = loaded_map
     is_initialized = True
-    print("\n--- QA Chatbot is initialized and ready (Deliberate Two-Step Mode). ---")
+    print("\n--- Provost chatbot is ready")
     return True
 
+#Routed to / for home endpoint
 @app.route('/', methods=['POST'])
 def handle_qa():
-    """The main endpoint using the deliberate two-step pipeline."""
     if not is_initialized:
         return jsonify({"error": "Server not initialized."}), 503
     data = request.get_json()
@@ -192,24 +155,15 @@ def handle_qa():
         return jsonify({"error": "Request must be JSON with a 'question' field."}), 400
     query = data['question']
 
-    # API Call 1: Identify the most relevant file.
     all_filenames = list(file_to_url_map.keys())
     relevant_filename = identify_relevant_file(query, all_filenames, conversation_history) 
 
     if not relevant_filename:
         return jsonify({"answer": "I could not identify a relevant document to search.", "source": "File Identification Failed"})
 
-    # # Mandatory 5-second wait as requested.
-    # print("Waiting for 1 seconds before the next API call...")
-    # time.sleep(1)
-
-    # Look up the URL for the identified file.
     url_to_search = file_to_url_map.get(relevant_filename)
     print(url_to_search)
-    # Modified to pass history to the function
     final_answer = urlSearchFx(query, url_to_search, conversation_history) 
-
-    # New: Add the current question and answer to the history
     conversation_history.append({'role': 'User', 'content': query})
     conversation_history.append({'role': 'Assistant', 'content': final_answer})
 
