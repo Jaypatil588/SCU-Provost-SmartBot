@@ -16,6 +16,11 @@ from google import genai
 from google.genai import types
 my_api_key = "AIzaSyB4hP-FxNYmzyeOT6zwgfL3LsRd4zpgWjc"
 
+#add conversation history:
+from collections import deque
+conversation_history = deque(maxlen=6)
+
+
 def searchFx(prompt):
 
     # Configure the client
@@ -44,18 +49,25 @@ def searchFx(prompt):
     print(response.text)
     return response.text
 
-def urlSearchFx(query, url):
+def urlSearchFx(query, url,conv):
+    conv = "\n".join([f"{item['role']}: {item['content']}" for item in conv])
+
     prompt = f"""
 You are a strict Q&A assistant for the Santa Clara University (SCU) Provost's Office.
 Your persona is a busy but helpful administrative assistant. Your responses must be extremely concise, direct, and professional.
 
 **Core Task:** Answer the user's question using ONLY the text from the provided URL: {url}
 
+**Conversation History (for context):**
+---
+{conv}
+---
+
 **Response Rules (Follow Strictly):**
 1.  **Be Brief:** Provide only the direct answer. Do not use extra words, conversational filler, or pleasantries.
 2.  **"Not Found" Handling:** If the requested information (like a person or title) is not on the webpage, state clearly and simply that it is not listed.
     * *Example for a missing title:* "There is no position with that title listed on the Provost's Office webpage."
-3.  **General Contact:** If the user asks a general "who to contact" question, provide ONLY the following details:
+3.  **General Contact:** If the user asks a general "who to contact" question, provide ONLY the following details, else search the specific webpage for the person/department asked.
     Office of the Provost and Executive Vice President
     Office: 408 554 4533
     Fax: 408 551 6074
@@ -101,10 +113,9 @@ def load_file_metadata(directory):
 
 # --- 3. CORE LOGIC (DELIBERATE TWO-STEP PROCESS) ---
 
-def identify_relevant_file(query, all_filenames):
-    """
-    API Call 1: Asks Gemini to act as a file router to find the single most relevant file.
-    """
+def identify_relevant_file(query, all_filenames,conv):
+    conv = "\n".join([f"{item['role']}: {item['content']}" for item in conv])
+
     print("Step 1: Identifying the most relevant file via API call...")
     
     # Create a string of all filenames for the prompt
@@ -112,7 +123,11 @@ def identify_relevant_file(query, all_filenames):
 
     prompt = f"""
 You are a file routing assistant. Your task is to identify the single most relevant filename from the provided list to answer the user's question.
-
+---
+**Conversation History:**
+---
+{conv}
+---
 **Instructions:**
 1.  Read the user's question carefully.
 2.  Review the list of filenames.
@@ -172,7 +187,7 @@ def handle_qa():
 
     # API Call 1: Identify the most relevant file.
     all_filenames = list(file_to_url_map.keys())
-    relevant_filename = identify_relevant_file(query, all_filenames)
+    relevant_filename = identify_relevant_file(query, all_filenames, conversation_history) 
 
     if not relevant_filename:
         return jsonify({"answer": "I could not identify a relevant document to search.", "source": "File Identification Failed"})
@@ -184,8 +199,12 @@ def handle_qa():
     # Look up the URL for the identified file.
     url_to_search = file_to_url_map.get(relevant_filename)
     print(url_to_search)
-    # API Call 2: Generate the final answer by browsing the single URL.
-    final_answer = urlSearchFx(query, url_to_search)
+    # Modified to pass history to the function
+    final_answer = urlSearchFx(query, url_to_search, conversation_history) 
+
+    # New: Add the current question and answer to the history
+    conversation_history.append({'role': 'User', 'content': query})
+    conversation_history.append({'role': 'Assistant', 'content': final_answer})
 
     return jsonify({"answer": final_answer, "source": f"Live Search on {url_to_search}"})
 
