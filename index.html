@@ -1,0 +1,257 @@
+<style>
+    /* NOTE: We have removed the 'body' styles to prevent conflicts with your main site. */
+    .provost-chat-container {
+        width: 400px;
+        max-width: 100%;
+        height: 600px;
+        background-color: #ffffff;
+        border-radius: 16px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        font-family: Arial, sans-serif; /* Set font family here */
+    }
+    .provost-chat-container .chat-header {
+        background: linear-gradient(135deg, #862633, #a63a4a);
+        color: white;
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        position: relative;
+    }
+    .provost-chat-container .logo {
+        background-color: white;
+        color: #862633;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-weight: bold;
+        font-size: 20px;
+        margin-right: 15px;
+    }
+    .provost-chat-container .header-title h2 {
+        margin: 0;
+        font-size: 18px;
+    }
+    .provost-chat-container .header-title p {
+        margin: 0;
+        font-size: 12px;
+        opacity: 0.9;
+    }
+    .provost-chat-container .close-btn {
+        position: absolute;
+        top: 10px;
+        right: 20px;
+        font-size: 24px;
+        cursor: pointer;
+    }
+    .provost-chat-container .chat-window {
+        flex-grow: 1;
+        padding: 20px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+    }
+    .provost-chat-container .message {
+        display: flex;
+        margin-bottom: 15px;
+        max-width: 80%;
+    }
+    .provost-chat-container .message .avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background-color: #e0e0e0;
+        color: #333;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        margin-right: 10px;
+        flex-shrink: 0;
+    }
+    .provost-chat-container .message .message-content {
+        padding: 12px;
+        border-radius: 18px;
+        line-height: 1.4;
+    }
+    .provost-chat-container .message.assistant {
+        align-self: flex-start;
+    }
+    .provost-chat-container .message.assistant .message-content {
+        background-color: #f1f1f1;
+        color: #333;
+    }
+    .provost-chat-container .message.user {
+        align-self: flex-end;
+        flex-direction: row-reverse;
+    }
+    .provost-chat-container .message.user .avatar {
+        margin-left: 10px;
+        margin-right: 0;
+        background-color: #862633;
+        color: white;
+    }
+    .provost-chat-container .message.user .message-content {
+        background-color: #862633;
+        color: white;
+    }
+    .provost-chat-container .chat-input-area {
+        display: flex;
+        padding: 15px;
+        border-top: 1px solid #e0e0e0;
+    }
+    .provost-chat-container #provost-user-input {
+        flex-grow: 1;
+        border: 1px solid #ccc;
+        border-radius: 20px;
+        padding: 10px 15px;
+        font-size: 14px;
+        outline: none;
+    }
+    .provost-chat-container #provost-user-input:focus {
+        border-color: #862633;
+    }
+    .provost-chat-container #provost-send-btn {
+        background-color: #862633;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        margin-left: 10px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .provost-chat-container .typing-indicator .message-content span {
+        display: inline-block;
+        animation: provost-blink 1.4s infinite both;
+    }
+    .provost-chat-container .typing-indicator .message-content span:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+    .provost-chat-container .typing-indicator .message-content span:nth-child(3) {
+        animation-delay: 0.4s;
+    }
+    @keyframes provost-blink {
+        0% { opacity: 0.2; }
+        20% { opacity: 1; }
+        100% { opacity: 0.2; }
+    }
+</style>
+
+<div class="provost-chat-container">
+    <div class="chat-header">
+        <div class="logo">C</div>
+        <div class="header-title">
+            <h2>Provost Chatbot</h2>
+            <p>Your guide to the Provost's Office.</p>
+        </div>
+        <div class="close-btn">&times;</div>
+    </div>
+    <div class="chat-window" id="provost-chat-window">
+        <div class="message assistant">
+            <div class="avatar">A</div>
+            <div class="message-content">How can I help you today?</div>
+        </div>
+    </div>
+    <div class="chat-input-area">
+        <input type="text" id="provost-user-input" placeholder="Reply...">
+        <button id="provost-send-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
+        </button>
+    </div>
+</div>
+
+<script>
+    // Using a self-executing function to avoid conflicts with other scripts on your site.
+    (function() {
+        const userInput = document.getElementById('provost-user-input');
+        const sendBtn = document.getElementById('provost-send-btn');
+        const chatWindow = document.getElementById('provost-chat-window');
+        const API_ENDPOINT = 'https://d9d3ac69b990.ngrok-free.app/'; // This should be your hosted API endpoint
+
+        const sendMessage = async () => {
+            const question = userInput.value.trim();
+            if (!question) return;
+
+            appendMessage('user', question);
+            userInput.value = '';
+            appendTypingIndicator();
+
+            try {
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question: question }),
+                });
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                
+                const data = await response.json();
+                removeTypingIndicator();
+                appendMessage('assistant', data.answer);
+
+            } catch (error) {
+                console.error('Error fetching response:', error);
+                removeTypingIndicator();
+                appendMessage('assistant', 'Sorry, an error occurred. Please try again.');
+            }
+        };
+
+        const appendMessage = (sender, text) => {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+
+            const avatar = document.createElement('div');
+            avatar.className = 'avatar';
+            avatar.textContent = sender === 'user' ? 'U' : 'A';
+
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            messageContent.textContent = text;
+            
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(messageContent);
+            chatWindow.appendChild(messageDiv);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        };
+
+        const appendTypingIndicator = () => {
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message assistant typing-indicator';
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'avatar';
+            avatar.textContent = 'A';
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            messageContent.innerHTML = '<span>.</span><span>.</span><span>.</span>';
+            
+            typingDiv.appendChild(avatar);
+            typingDiv.appendChild(messageContent);
+            chatWindow.appendChild(typingDiv);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        };
+
+        const removeTypingIndicator = () => {
+            const typingIndicator = chatWindow.querySelector('.typing-indicator');
+            if (typingIndicator) {
+                chatWindow.removeChild(typingIndicator);
+            }
+        };
+
+        sendBtn.addEventListener('click', sendMessage);
+        userInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    })();
+</script>
