@@ -14,7 +14,14 @@ from google.api_core import client_options
 # --- 1. CONFIGURATION ---
 from google import genai
 from google.genai import types
-my_api_key = "AIzaSyB4hP-FxNYmzyeOT6zwgfL3LsRd4zpgWjc"
+import os
+from dotenv import load_dotenv
+
+# Load variables from .env file into the environment
+load_dotenv()
+
+# Now you can access the variable using os.environ.get()
+my_api_key = os.environ.get("GEMINI_API_KEY")
 
 #add conversation history:
 from collections import deque
