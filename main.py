@@ -12,7 +12,7 @@ from collections import deque
 load_dotenv()
 DATA_DIR = "scraped"
 my_api_key = os.environ.get("GEMINI_API_KEY")
-conversation_history = deque(maxlen=10)
+conversation_history = deque(maxlen=4)
 
 #DEF FUNCTIONS
 
@@ -45,7 +45,7 @@ Your persona is a busy but helpful administrative assistant. Your responses must
 
 **Core Task:** Answer the user's question using ONLY the text from the provided URL: {url}
 
-**Conversation History (for context):**
+**Conversation History (for context): Do not give priority to the conversation history, it is only there to guide you as a bot. If a new question is asked, search accordingly.**
 ---
 {conv}
 ---
@@ -67,7 +67,7 @@ Your persona is a busy but helpful administrative assistant. Your responses must
 * Do NOT explain *why* the information is not available.
 
 **User's Question:**
-{query}
+{query} in SCU Provost
 
 **Answer:**
 """
@@ -116,7 +116,7 @@ You are a file routing assistant. Your task is to identify the single most relev
 ---
 
 **User's Question:**
-{query}
+{query} in SCU Provost
 
 **Most Relevant Filename:**
 """
